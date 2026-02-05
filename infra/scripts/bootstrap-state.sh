@@ -5,29 +5,29 @@ set -euo pipefail
 # - Creates Terraform remote state prerequisites in the CURRENT AWS account:
 #   - S3 bucket for state (versioning + encryption + public access block)
 #   - DynamoDB table for state locking
-#   - Terraform execution role (assumable by you locally + GitHub Actions via OIDC)
-# - Also sets up GitHub Actions OIDC:
+# - Sets up GitHub Actions OIDC:
 #   - IAM OIDC provider for token.actions.githubusercontent.com (idempotent)
 #   - GitHub OIDC role that Actions assumes
-# - Generates infra/backend.hcl used by terraform init
+# - Writes backend config to:
+#   infra/env/<environment>/backend.hcl
 #
 # Usage (Git Bash, from repo root):
+#   source infra/scripts/use-env.sh sandbox
 #   bash infra/scripts/bootstrap-state.sh sandbox --region eu-west-2
 #
-# Notes
-#   - This script creates resources in whichever AWS account your current auth points to.
-#   - Always check the printed Account + Caller ARN before continuing.
-#   - If you want a different account, switch AWS_PROFILE first, then rerun.
+# Notes:
+# - This script creates resources in whichever AWS account your current auth points to.
+# - Always check the printed Account + Caller ARN before continuing.
+# - If you want a different account, switch AWS_PROFILE first, then rerun.
 
 usage() {
-  echo "Usage: bash infra/scripts/bootstrap-state.sh <environment> [--region eu-west-2] [--role-name TerraformExecutionRole] [--github-role-name GitHubOIDCTerraformRole] [--github-repo owner/repo]"
+  echo "Usage: bash infra/scripts/bootstrap-state.sh <environment> [--region eu-west-2] [--github-role-name GitHubOIDCTerraformRole] [--github-repo owner/repo]"
   echo ""
   echo "Args:"
-  echo "  <environment>       Environment folder name under infra/env/ (e.g., sandbox)"
+  echo "  <environment>       Folder name under infra/env/ (e.g., sandbox)"
   echo ""
   echo "Options:"
   echo "  --region            AWS region (default: AWS_REGION or eu-west-2)"
-  echo "  --role-name         Terraform execution role name (default: TerraformExecutionRole)"
   echo "  --github-role-name  GitHub OIDC role name (default: GitHubOIDCTerraformRole)"
   echo "  --github-repo       GitHub repo in owner/repo format (auto-detected if possible)"
   exit 1
@@ -45,7 +45,6 @@ if [ -z "$ENVIRONMENT" ]; then
 fi
 
 REGION="${AWS_REGION:-eu-west-2}"
-ROLE_NAME="TerraformExecutionRole"
 GITHUB_ROLE_NAME="GitHubOIDCTerraformRole"
 GITHUB_REPO=""
 
@@ -54,10 +53,6 @@ while [ "${1:-}" != "" ]; do
     --region)
       shift
       REGION="${1:-}"
-      ;;
-    --role-name)
-      shift
-      ROLE_NAME="${1:-}"
       ;;
     --github-role-name)
       shift
@@ -83,6 +78,13 @@ if ! command -v aws >/dev/null 2>&1; then
 fi
 
 PROJECT_NAME="template-terraform-boilerplate"
+ENV_DIR="infra/env/$ENVIRONMENT"
+
+if [ ! -d "$ENV_DIR" ]; then
+  echo "Environment folder not found: $ENV_DIR"
+  echo "Create it under infra/env/ and try again."
+  exit 1
+fi
 
 # Confirm identity early (avoid creating resources in the wrong account)
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
@@ -122,11 +124,11 @@ fi
 STATE_BUCKET="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tfstate"
 LOCK_TABLE="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tflocks"
 
-ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
-GITHUB_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${GITHUB_ROLE_NAME}"
+OIDC_URL="https://token.actions.githubusercontent.com"
+OIDC_PROVIDER_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
 
 echo ""
-echo "Bootstrap (remote state + roles)"
+echo "Bootstrap (remote state + GitHub OIDC)"
 echo "Environment:   $ENVIRONMENT"
 echo "Account:       $ACCOUNT_ID"
 echo "Region:        $REGION"
@@ -134,7 +136,6 @@ echo "Caller ARN:    $CALLER_ARN"
 echo "GitHub repo:   $GITHUB_REPO"
 echo "State bucket:  $STATE_BUCKET"
 echo "Lock table:    $LOCK_TABLE"
-echo "TF role:       $ROLE_NAME"
 echo "GitHub role:   $GITHUB_ROLE_NAME"
 echo ""
 
@@ -197,60 +198,15 @@ else
 fi
 
 ###############################################################################
-# 3) Create Terraform execution role
-###############################################################################
-echo ""
-echo "→ Ensuring Terraform execution role exists..."
-
-if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
-  echo "  - Role exists: $ROLE_NAME"
-else
-  echo "  - Creating role: $ROLE_NAME"
-
-  # Start with local caller trusted; we’ll update later to also trust the GitHub role.
-  TRUST_POLICY="$(cat <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AllowAssumeFromLocalCaller",
-      "Effect": "Allow",
-      "Principal": { "AWS": "${CALLER_ARN}" },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-)"
-
-  aws iam create-role \
-    --role-name "$ROLE_NAME" \
-    --assume-role-policy-document "$TRUST_POLICY" >/dev/null
-
-  echo "  - Role created: $ROLE_NAME"
-fi
-
-# Permissions for TerraformExecutionRole
-# NOTE: For templates, starting broad is common so your first applies don’t get blocked.
-# Tighten later when you know exactly what resources you manage.
-aws iam attach-role-policy \
-  --role-name "$ROLE_NAME" \
-  --policy-arn "arn:aws:iam::aws:policy/AdministratorAccess" >/dev/null || true
-
-###############################################################################
-# 4) GitHub Actions OIDC provider + role
+# 3) GitHub Actions OIDC provider + role
 ###############################################################################
 echo ""
 echo "→ Ensuring GitHub OIDC provider exists..."
-
-OIDC_URL="https://token.actions.githubusercontent.com"
-OIDC_PROVIDER_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
-
 if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "$OIDC_PROVIDER_ARN" >/dev/null 2>&1; then
   echo "  - OIDC provider exists"
 else
   # GitHub OIDC uses a stable root CA chain. This thumbprint is the commonly used value for token.actions.githubusercontent.com.
-  # If AWS ever requires an update, you can recreate the provider with the new thumbprint.
+  # If AWS ever requires an update, recreate the provider with the new thumbprint.
   THUMBPRINT="6938fd4d98bab03faadb97b34396831e3780aea1"
 
   aws iam create-open-id-connect-provider \
@@ -262,13 +218,11 @@ else
 fi
 
 echo "→ Ensuring GitHub OIDC role exists..."
-
 if aws iam get-role --role-name "$GITHUB_ROLE_NAME" >/dev/null 2>&1; then
   echo "  - Role exists: $GITHUB_ROLE_NAME"
 else
   echo "  - Creating role: $GITHUB_ROLE_NAME"
 
-  # Restrict to this repo (owner/repo). You can tighten further to a branch if you want.
   GITHUB_TRUST_POLICY="$(cat <<EOF
 {
   "Version": "2012-10-17",
@@ -276,9 +230,7 @@ else
     {
       "Sid": "AllowGitHubActionsOIDC",
       "Effect": "Allow",
-      "Principal": {
-        "Federated": "${OIDC_PROVIDER_ARN}"
-      },
+      "Principal": { "Federated": "${OIDC_PROVIDER_ARN}" },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
@@ -301,65 +253,37 @@ EOF
   echo "  - Role created: $GITHUB_ROLE_NAME"
 fi
 
-# Permissions for GitHubOIDCTerraformRole
-# Same story: start broad for templates; tighten later.
+GITHUB_ROLE_ARN="$(aws iam get-role --role-name "$GITHUB_ROLE_NAME" --query 'Role.Arn' --output text 2>/dev/null || true)"
+if [ -z "$GITHUB_ROLE_ARN" ] || [ "$GITHUB_ROLE_ARN" = "None" ]; then
+  echo "Could not resolve GitHub role ARN for: $GITHUB_ROLE_NAME"
+  echo "Tip: IAM can be eventually consistent. Re-run in ~10 seconds."
+  exit 1
+fi
+
+# Template default: broad permissions so first runs don’t get blocked.
+# Tighten later when you know exactly what you manage.
+echo "→ Ensuring GitHub role has permissions (AdministratorAccess)..."
 aws iam attach-role-policy \
   --role-name "$GITHUB_ROLE_NAME" \
   --policy-arn "arn:aws:iam::aws:policy/AdministratorAccess" >/dev/null || true
 
 ###############################################################################
-# 5) Update TerraformExecutionRole trust to include GitHub role
+# 4) Write env-bound backend.hcl (NO role_arn)
 ###############################################################################
 echo ""
-echo "→ Updating TerraformExecutionRole trust (local + GitHub)..."
-
-UPDATED_TF_TRUST_POLICY="$(cat <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AllowAssumeFromLocalCaller",
-      "Effect": "Allow",
-      "Principal": { "AWS": "${CALLER_ARN}" },
-      "Action": "sts:AssumeRole"
-    },
-    {
-      "Sid": "AllowAssumeFromGitHubOIDCRole",
-      "Effect": "Allow",
-      "Principal": { "AWS": "${GITHUB_ROLE_ARN}" },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-)"
-
-aws iam update-assume-role-policy \
-  --role-name "$ROLE_NAME" \
-  --policy-document "$UPDATED_TF_TRUST_POLICY" >/dev/null
-
-echo "  - Trust updated"
-
-###############################################################################
-# 6) Write infra/backend.hcl
-###############################################################################
-echo ""
-echo "→ Writing infra/backend.hcl..."
+echo "→ Writing $ENV_DIR/backend.hcl..."
 
 STATE_KEY="${PROJECT_NAME}/${ENVIRONMENT}/terraform.tfstate"
 
-mkdir -p infra
-
-cat > infra/backend.hcl <<EOF
+cat > "$ENV_DIR/backend.hcl" <<EOF
 bucket         = "$STATE_BUCKET"
 key            = "$STATE_KEY"
 region         = "$REGION"
 dynamodb_table = "$LOCK_TABLE"
 encrypt        = true
-role_arn       = "$ROLE_ARN"
 EOF
 
-echo "  - Wrote infra/backend.hcl"
+echo "  - Wrote $ENV_DIR/backend.hcl"
 echo ""
 echo "    Bootstrap complete"
 echo ""
@@ -367,7 +291,7 @@ echo "Next (local):"
 echo "  source infra/scripts/use-env.sh $ENVIRONMENT"
 echo "  bash infra/scripts/whoami.sh"
 echo "  cd infra/env/$ENVIRONMENT"
-echo "  terraform init -backend-config=../../backend.hcl"
+echo "  terraform init -backend-config=backend.hcl"
 echo ""
 echo "Next (GitHub):"
 echo "  Create GitHub Environment named: $ENVIRONMENT"
