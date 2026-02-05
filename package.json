@@ -5,9 +5,13 @@
   "author": "Adam Harvey",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "node --test",
+    "tf:prereqs": "bash infra/scripts/prereqs.sh",
+    "tf:whoami": "bash infra/scripts/whoami.sh",
+    "tf:bootstrap": "bash infra/scripts/bootstrap-state.sh",
+    "tf:fmt": "bash infra/scripts/fmt.sh",
+    "tf:validate": "bash infra/scripts/validate.sh",
+    "tf:plan": "bash infra/scripts/plan.sh",
+    "tf:apply": "bash infra/scripts/apply.sh",
     "prepare": "husky",
     "release": "commit-and-tag-version"
   },
