@@ -12,8 +12,8 @@ set -euo pipefail
 #   infra/env/<environment>/backend.hcl
 #
 # Usage (Git Bash, from repo root):
-#   source infra/scripts/use-env.sh sandbox
-#   bash infra/scripts/bootstrap-state.sh sandbox --region eu-west-2
+#   source infra/scripts/use-env.sh <aws-account>
+#   bash infra/scripts/bootstrap-state.sh <aws-account> --region eu-west-2
 #
 # Notes:
 # - This script creates resources in whichever AWS account your current auth points to.
