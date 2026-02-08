@@ -1,4 +1,5 @@
 # Terraform local working dir
+.terraform
 **/.terraform/*
 **/.terraformrc
 terraform.rc
