@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment folder under infra/env/ (e.g. sandbox)"
+        description: "Environment folder under infra/env/"
         required: true
         type: string
 
@@ -28,6 +28,8 @@ jobs:
     name: Validate + Plan (${{ matrix.environment }})
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -50,8 +52,42 @@ jobs:
       - name: Make scripts executable
         run: chmod +x infra/scripts/*.sh
 
+      - name: Install tflint
+        run: |
+          set -euo pipefail
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          tflint --version
+
       - name: Validate (fmt check + validate + tflint)
         run: bash infra/scripts/validate.sh ${{ matrix.environment }}
+
+      - name: Generate backend.hcl
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ENVIRONMENT="${{ matrix.environment }}"
+          REGION="${{ env.AWS_REGION }}"
+          PROJECT_NAME="template-terraform-boilerplate"
+
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+
+          STATE_BUCKET="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tfstate"
+          LOCK_TABLE="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tflocks"
+          STATE_KEY="${PROJECT_NAME}/${ENVIRONMENT}/terraform.tfstate"
+
+          ENV_DIR="infra/env/${ENVIRONMENT}"
+          mkdir -p "${ENV_DIR}"
+
+          cat > "${ENV_DIR}/backend.hcl" <<EOF
+          bucket         = "${STATE_BUCKET}"
+          key            = "${STATE_KEY}"
+          region         = "${REGION}"
+          dynamodb_table = "${LOCK_TABLE}"
+          encrypt        = true
+          EOF
+
+          echo "Wrote ${ENV_DIR}/backend.hcl"
 
       - name: Plan
         run: bash infra/scripts/plan.sh ${{ matrix.environment }}
@@ -64,10 +100,10 @@ jobs:
           if-no-files-found: error
 
   apply:
-    name: Apply (${{ inputs.environment }})
+    name: Apply (${{ matrix.environment }})
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ matrix.environment }}
 
     steps:
       - name: Checkout
@@ -85,11 +121,45 @@ jobs:
       - name: Make scripts executable
         run: chmod +x infra/scripts/*.sh
 
+      - name: Install tflint
+        run: |
+          set -euo pipefail
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          tflint --version
+
       - name: Validate (fmt check + validate + tflint)
-        run: bash infra/scripts/validate.sh ${{ inputs.environment }}
+        run: bash infra/scripts/validate.sh ${{ matrix.environment }}
+
+      - name: Generate backend.hcl
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ENVIRONMENT="${{ matrix.environment }}"
+          REGION="${{ env.AWS_REGION }}"
+          PROJECT_NAME="template-terraform-boilerplate"
+
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+
+          STATE_BUCKET="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tfstate"
+          LOCK_TABLE="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tflocks"
+          STATE_KEY="${PROJECT_NAME}/${ENVIRONMENT}/terraform.tfstate"
+
+          ENV_DIR="infra/env/${ENVIRONMENT}"
+          mkdir -p "${ENV_DIR}"
+
+          cat > "${ENV_DIR}/backend.hcl" <<EOF
+          bucket         = "${STATE_BUCKET}"
+          key            = "${STATE_KEY}"
+          region         = "${REGION}"
+          dynamodb_table = "${LOCK_TABLE}"
+          encrypt        = true
+          EOF
+
+          echo "Wrote ${ENV_DIR}/backend.hcl"
 
       - name: Plan
-        run: bash infra/scripts/plan.sh ${{ inputs.environment }}
+        run: bash infra/scripts/plan.sh ${{ matrix.environment }}
 
       - name: Apply
-        run: bash infra/scripts/apply.sh ${{ inputs.environment }}
+        run: bash infra/scripts/apply.sh ${{ matrix.environment }}
