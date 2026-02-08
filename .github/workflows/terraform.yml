@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment folder under infra/env/ (e.g. sandbox)"
+        description: "Environment folder under infra/env/"
         required: true
         type: string
 
@@ -28,6 +28,8 @@ jobs:
     name: Validate + Plan (${{ matrix.environment }})
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +51,12 @@ jobs:
 
       - name: Make scripts executable
         run: chmod +x infra/scripts/*.sh
+
+      - name: Install tflint
+        run: |
+          set -euo pipefail
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          tflint --version
 
       - name: Validate (fmt check + validate + tflint)
         run: bash infra/scripts/validate.sh ${{ matrix.environment }}
@@ -84,6 +92,12 @@ jobs:
 
       - name: Make scripts executable
         run: chmod +x infra/scripts/*.sh
+
+      - name: Install tflint
+        run: |
+          set -euo pipefail
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          tflint --version
 
       - name: Validate (fmt check + validate + tflint)
         run: bash infra/scripts/validate.sh ${{ inputs.environment }}

@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # validate.sh
-# - Local quality gate (CI-like) for a deployable root under infra/env/<aws-account>
-# - Includes checks:
-#   1) terraform fmt -check (style gate, does not modify files)
+# - Local/CI quality gate for a deployable root under infra/env/<aws-account>
+# - Includes:
+#   1) terraform fmt (writes changes)
 #   2) terraform validate (syntax + internal consistency)
 #   3) tflint (provider-aware linting)
 #
@@ -29,14 +29,13 @@ if [ ! -d "$ENV_DIR" ]; then
   exit 1
 fi
 
-echo "Validate (fmt check → terraform validate → tflint)"
-echo "Target: $ENVIRONMENT"
+echo "Validate (fmt → terraform validate → tflint)"
+echo "Environment: $ENVIRONMENT"
 echo ""
 
-echo "→ terraform fmt (check)"
-cd "$ROOT_DIR"
-terraform fmt -recursive -check
-echo "fmt check passed"
+echo "→ terraform fmt"
+bash "$ROOT_DIR/scripts/fmt.sh"
+echo "fmt complete"
 echo ""
 
 echo "→ terraform validate"
@@ -58,4 +57,4 @@ tflint --recursive
 echo "tflint passed"
 echo ""
 
-echo "validate complete for target: $ENVIRONMENT"
+echo "validate complete for environment: $ENVIRONMENT"
