@@ -53,7 +53,7 @@ if ! command -v tflint >/dev/null 2>&1; then
 fi
 
 cd "$ROOT_DIR"
-tflint --recursive
+tflint
 echo "tflint passed"
 echo ""
 

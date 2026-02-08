@@ -29,6 +29,14 @@ echo ""
 
 cd "$ENV_DIR"
 
+if [ ! -f "backend.hcl" ]; then
+  echo "backend.hcl not found in: $ENV_DIR"
+  echo "Fix (local): run bootstrap for this environment."
+  exit 1
+fi
+
+terraform init -input=false -backend-config=backend.hcl
+
 if [ ! -f "tfplan" ]; then
   echo "No tfplan found in $ENV_DIR"
   echo "Run: infra/scripts/plan.sh $ENVIRONMENT"
@@ -36,4 +44,4 @@ if [ ! -f "tfplan" ]; then
 fi
 
 terraform apply -input=false "tfplan"
-echo "apply complete for target: $ENVIRONMENT"
+echo "apply complete for environment: $ENVIRONMENT"

@@ -30,11 +30,19 @@ echo ""
 
 cd "$ENV_DIR"
 
-terraform init -input=false -backend-config=../../backend.hcl
+if [ ! -f "backend.hcl" ]; then
+  echo "backend.hcl not found in: $ENV_DIR"
+  echo "Fix (local): run bootstrap for this environment:"
+  echo "  bash $ROOT_DIR/scripts/bootstrap-state.sh $ENVIRONMENT --region ${AWS_REGION:-eu-west-2}"
+  echo "Fix (CI): generate backend.hcl before running plan.sh"
+  exit 1
+fi
+
+terraform init -input=false -backend-config=backend.hcl
 
 terraform plan -input=false \
   -var-file="env.tfvars" \
   -out="tfplan"
 
-echo "plan complete for target: $ENVIRONMENT"
+echo "plan complete for environment: $ENVIRONMENT"
 echo "Plan saved to: $ENV_DIR/tfplan"
