@@ -20,7 +20,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TF_IN_AUTOMATION: "true"
   AWS_REGION: "eu-west-2"
 
 jobs:
