@@ -1,7 +1,7 @@
 {
   "name": "template-terraform-boilerplate",
   "description": "Reusable Terraform boilerplate repo: a clean starter structure for modules, multi environments, and CI-ready workflow.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Adam Harvey",
   "type": "module",
   "scripts": {
