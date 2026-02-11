@@ -58,7 +58,7 @@ bash infra/scripts/bootstrap-state.sh "$ENVIRONMENT" --region eu-west-2
 
 # initialise Terraform for the environment using the generated backend config
 cd "infra/env/$ENVIRONMENT"
-terraform init -backend-config=../../backend.hcl
+terraform init -backend-config=backend.hcl
 
 # validate (fmt check + validate + tflint)
 bash infra/scripts/validate.sh "$ENVIRONMENT"
