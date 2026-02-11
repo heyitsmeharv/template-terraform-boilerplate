@@ -58,36 +58,11 @@ jobs:
           curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
           tflint --version
 
-      - name: Validate (fmt check + validate + tflint)
+      - name: Validate (fmt + validate + tflint)
         run: bash infra/scripts/validate.sh ${{ matrix.environment }}
 
-      - name: Generate backend.hcl
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ENVIRONMENT="${{ matrix.environment }}"
-          REGION="${{ env.AWS_REGION }}"
-          PROJECT_NAME="template-terraform-boilerplate"
-
-          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-
-          STATE_BUCKET="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tfstate"
-          LOCK_TABLE="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tflocks"
-          STATE_KEY="${PROJECT_NAME}/${ENVIRONMENT}/terraform.tfstate"
-
-          ENV_DIR="infra/env/${ENVIRONMENT}"
-          mkdir -p "${ENV_DIR}"
-
-          cat > "${ENV_DIR}/backend.hcl" <<EOF
-          bucket         = "${STATE_BUCKET}"
-          key            = "${STATE_KEY}"
-          region         = "${REGION}"
-          dynamodb_table = "${LOCK_TABLE}"
-          encrypt        = true
-          EOF
-
-          echo "Wrote ${ENV_DIR}/backend.hcl"
+      - name: Write backend.hcl
+        run: bash infra/scripts/write-backend-hcl.sh ${{ matrix.environment }} --region ${{ env.AWS_REGION }}
 
       - name: Plan
         run: bash infra/scripts/plan.sh ${{ matrix.environment }}
@@ -100,10 +75,10 @@ jobs:
           if-no-files-found: error
 
   apply:
-    name: Apply (${{ matrix.environment }})
+    name: Apply (${{ inputs.environment }})
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: ${{ matrix.environment }}
+    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout
@@ -127,39 +102,14 @@ jobs:
           curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
           tflint --version
 
-      - name: Validate (fmt check + validate + tflint)
-        run: bash infra/scripts/validate.sh ${{ matrix.environment }}
+      - name: Validate (fmt + validate + tflint)
+        run: bash infra/scripts/validate.sh ${{ inputs.environment }}
 
-      - name: Generate backend.hcl
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ENVIRONMENT="${{ matrix.environment }}"
-          REGION="${{ env.AWS_REGION }}"
-          PROJECT_NAME="template-terraform-boilerplate"
-
-          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-
-          STATE_BUCKET="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tfstate"
-          LOCK_TABLE="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tflocks"
-          STATE_KEY="${PROJECT_NAME}/${ENVIRONMENT}/terraform.tfstate"
-
-          ENV_DIR="infra/env/${ENVIRONMENT}"
-          mkdir -p "${ENV_DIR}"
-
-          cat > "${ENV_DIR}/backend.hcl" <<EOF
-          bucket         = "${STATE_BUCKET}"
-          key            = "${STATE_KEY}"
-          region         = "${REGION}"
-          dynamodb_table = "${LOCK_TABLE}"
-          encrypt        = true
-          EOF
-
-          echo "Wrote ${ENV_DIR}/backend.hcl"
+      - name: Write backend.hcl
+        run: bash infra/scripts/write-backend-hcl.sh ${{ inputs.environment }} --region ${{ env.AWS_REGION }}
 
       - name: Plan
-        run: bash infra/scripts/plan.sh ${{ matrix.environment }}
+        run: bash infra/scripts/plan.sh ${{ inputs.environment }}
 
       - name: Apply
-        run: bash infra/scripts/apply.sh ${{ matrix.environment }}
+        run: bash infra/scripts/apply.sh ${{ inputs.environment }}

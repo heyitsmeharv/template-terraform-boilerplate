@@ -2,16 +2,16 @@
 set -euo pipefail
 
 # plan.sh
-# - Creates a plan for a chosen deployable root under infra/env/<aws-account>.
+# - Creates a plan for a chosen deployable root under infra/env/<environment>.
 # - Uses env.tfvars to supply values.
 # - Outputs a tfplan file so apply uses an exact, reviewed plan.
 #
 # Usage:
-#   infra/scripts/plan.sh <aws-account>
+#   bash infra/scripts/plan.sh <environment>
 
 ENVIRONMENT="${1:-}"
 if [ -z "$ENVIRONMENT" ]; then
-  echo "Usage: infra/scripts/plan.sh <aws-account>"
+  echo "Usage: bash infra/scripts/plan.sh <environment>"
   exit 1
 fi
 
@@ -20,23 +20,14 @@ ENV_DIR="$ROOT_DIR/env/$ENVIRONMENT"
 
 if [ ! -d "$ENV_DIR" ]; then
   echo "Environment folder not found: $ENV_DIR"
-  echo "Usage: infra/scripts/plan.sh <aws-account>"
   exit 1
 fi
 
 echo "Plan"
-echo "Target: $ENVIRONMENT"
+echo "Environment: $ENVIRONMENT"
 echo ""
 
 cd "$ENV_DIR"
-
-if [ ! -f "backend.hcl" ]; then
-  echo "backend.hcl not found in: $ENV_DIR"
-  echo "Fix (local): run bootstrap for this environment:"
-  echo "  bash $ROOT_DIR/scripts/bootstrap-state.sh $ENVIRONMENT --region ${AWS_REGION:-eu-west-2}"
-  echo "Fix (CI): generate backend.hcl before running plan.sh"
-  exit 1
-fi
 
 terraform init -input=false -backend-config=backend.hcl
 

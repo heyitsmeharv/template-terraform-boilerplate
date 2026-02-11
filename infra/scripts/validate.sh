@@ -2,21 +2,18 @@
 set -euo pipefail
 
 # validate.sh
-# - Local/CI quality gate for a deployable root under infra/env/<aws-account>
+# - Local/CI quality gate for an environment under infra/env/<environment>
 # - Includes:
 #   1) terraform fmt (writes changes)
 #   2) terraform validate (syntax + internal consistency)
-#   3) tflint (provider-aware linting)
+#   3) tflint (recursive linting)
 #
 # Usage:
-#   infra/scripts/validate.sh <aws-account>
-#
-# Install tflint:
-#   https://github.com/terraform-linters/tflint
+#   bash infra/scripts/validate.sh <environment>
 
 ENVIRONMENT="${1:-}"
 if [ -z "$ENVIRONMENT" ]; then
-  echo "Usage: infra/scripts/validate.sh <aws-account>"
+  echo "Usage: bash infra/scripts/validate.sh <environment>"
   exit 1
 fi
 
@@ -25,7 +22,6 @@ ENV_DIR="$ROOT_DIR/env/$ENVIRONMENT"
 
 if [ ! -d "$ENV_DIR" ]; then
   echo "Environment folder not found: $ENV_DIR"
-  echo "Usage: infra/scripts/validate.sh <aws-account>"
   exit 1
 fi
 
@@ -35,7 +31,6 @@ echo ""
 
 echo "→ terraform fmt"
 bash "$ROOT_DIR/scripts/fmt.sh"
-echo "fmt complete"
 echo ""
 
 echo "→ terraform validate"
@@ -45,6 +40,7 @@ terraform validate
 echo "terraform validate passed"
 echo ""
 
+# tflint: required in CI, optional locally (but if present we run it).
 echo "→ tflint"
 if ! command -v tflint >/dev/null 2>&1; then
   echo "tflint is not installed"
@@ -53,7 +49,7 @@ if ! command -v tflint >/dev/null 2>&1; then
 fi
 
 cd "$ROOT_DIR"
-tflint
+tflint --recursive
 echo "tflint passed"
 echo ""
 

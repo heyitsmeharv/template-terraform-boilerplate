@@ -2,18 +2,11 @@
 set -euo pipefail
 
 # prereqs.sh
-# - Verifies required tooling is available *in this Git Bash shell* (i.e., discoverable via PATH).
-# - This repo standardises on Git Bash to avoid cmd/powershell/Linux differences.
-# - This script does not install anything; it only checks and prints versions.
+# - Verifies required tooling is available *in this shell* (PATH).
+# - Does not install anything; fails fast with a clear hint.
 #
 # Usage:
 #   bash infra/scripts/prereqs.sh
-#
-# Requirements:
-# - Run in Git Bash (Windows) or any Bash shell with the tools on PATH.
-#
-# Notes:
-# - If something is missing, install it and then restart Git Bash so PATH updates apply.
 
 need() {
   local bin="$1"
@@ -28,15 +21,21 @@ need() {
   fi
 }
 
-echo "Checking prerequisites in Git Bash..."
+echo "Checking prerequisites..."
 echo ""
 
-need terraform "Install Terraform and ensure it's on PATH for Git Bash"
-need aws       "Install AWS CLI v2 and ensure it's on PATH for Git Bash"
-need jq        "Install jq and ensure it's on PATH for Git Bash (optional for pretty output, but required by this template)"
-need tflint    "Install tflint and ensure it's on PATH for Git Bash"
-need node      "Install Node.js (LTS) and ensure it's on PATH for Git Bash"
+need terraform "Install Terraform and ensure it's on PATH"
+need aws       "Install AWS CLI v2 and ensure it's on PATH"
+need jq        "Install jq and ensure it's on PATH (optional for pretty output, but required by this template)"
+need node      "Install Node.js (LTS) and ensure it's on PATH"
 need npm       "npm should come with Node.js (LTS)"
+
+# Optional locally. CI installs it in the workflow.
+if ! command -v tflint >/dev/null 2>&1; then
+  echo "Note: tflint not found (optional locally; CI installs it in the workflow)"
+  echo "Install: https://github.com/terraform-linters/tflint"
+  echo ""
+fi
 
 echo "All required tools are available."
 echo ""
@@ -44,7 +43,11 @@ echo ""
 echo "terraform: $(terraform version | head -n 1)"
 echo "aws:       $(aws --version 2>&1)"
 echo "jq:        $(jq --version)"
-echo "tflint:    $(tflint --version | head -n 1)"
 echo "node:      $(node --version)"
 echo "npm:       $(npm --version)"
-echo
+
+if command -v tflint >/dev/null 2>&1; then
+  echo "tflint:    $(tflint --version | head -n 1)"
+fi
+
+echo ""
