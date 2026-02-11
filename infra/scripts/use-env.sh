@@ -2,19 +2,19 @@
 set -euo pipefail
 
 # use-env.sh
-# - Switches local AWS context by setting AWS_PROFILE=<aws-account>.
-# - Use with "source" so the variable persists in your current shell session.
+# - Switches local AWS context by setting AWS_PROFILE=<environment>.
+# - Use with "source" so it persists in your current shell session.
 #
 # Usage:
-#   source infra/scripts/use-env.sh <aws-account>
+#   source infra/scripts/use-env.sh <environment>
 #
 # Notes:
-# - Assumes AWS profiles are configured in ~/.aws/config
-# - Region is set here for convenience and can be overridden
+# - Assumes AWS profiles exist in ~/.aws/config
+# - Sets region defaults (can be overridden per shell)
 
 ENVIRONMENT="${1:-}"
 if [ -z "$ENVIRONMENT" ]; then
-  echo "Usage: source infra/scripts/use-env.sh <aws-account>"
+  echo "Usage: source infra/scripts/use-env.sh <environment>"
   return 1 2>/dev/null || exit 1
 fi
 
@@ -25,8 +25,10 @@ export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
 
 echo "Switched AWS context"
 echo "AWS_PROFILE=$AWS_PROFILE"
+echo "AWS_REGION=$AWS_REGION"
 echo ""
 echo "Next:"
+echo "  bash infra/scripts/whoami.sh"
 echo "  cd infra/env/$ENVIRONMENT"
-echo "  terraform init -backend-config=../../backend.hcl"
-echo "  terraform plan -var-file=env.tfvars"
+echo "  bash ../../scripts/write-backend-hcl.sh $ENVIRONMENT --region $AWS_REGION"
+echo "  terraform init -backend-config=backend.hcl"
