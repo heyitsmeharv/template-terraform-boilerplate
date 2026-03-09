@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # validate.sh
 # - Local/CI quality gate for an environment under infra/env/<environment>

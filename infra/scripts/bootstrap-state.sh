@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # bootstrap-state.sh
 # - Creates Terraform remote state prerequisites in the CURRENT AWS account:
@@ -90,10 +89,7 @@ fi
 if [ -z "$GITHUB_REPO" ] && command -v git >/dev/null 2>&1; then
   ORIGIN_URL="$(git config --get remote.origin.url 2>/dev/null || true)"
   if echo "$ORIGIN_URL" | grep -q "github.com"; then
-    GITHUB_REPO="$(echo "$ORIGIN_URL" \
-      | sed -E 's#^git@github\.com:##' \
-      | sed -E 's#^https://github\.com/##' \
-      | sed -E 's#\.git$##')"
+    GITHUB_REPO="$(echo "$ORIGIN_URL" | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')"
   fi
 fi
 
@@ -103,8 +99,10 @@ if [ -z "$GITHUB_REPO" ]; then
   exit 1
 fi
 
-STATE_BUCKET="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tfstate"
+STATE_BUCKET="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}"
 LOCK_TABLE="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}-tflocks"
+STATE_PREFIX="terraform-states"
+STATE_KEY="${STATE_PREFIX}/${ENVIRONMENT}/terraform.tfstate"
 
 OIDC_URL="https://token.actions.githubusercontent.com"
 OIDC_PROVIDER_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
@@ -117,6 +115,8 @@ echo "Region:        $REGION"
 echo "Caller ARN:    $CALLER_ARN"
 echo "GitHub repo:   $GITHUB_REPO"
 echo "State bucket:  $STATE_BUCKET"
+echo "State prefix:  $STATE_PREFIX"
+echo "State key:     $STATE_KEY"
 echo "Lock table:    $LOCK_TABLE"
 echo "GitHub role:   $GITHUB_ROLE_NAME"
 echo ""
@@ -156,6 +156,13 @@ aws s3api put-public-access-block \
   }' >/dev/null
 
 echo "  - Bucket configured"
+
+echo "→ Ensuring terraform state prefix exists..."
+aws s3api put-object \
+  --bucket "$STATE_BUCKET" \
+  --key "${STATE_PREFIX}/" >/dev/null
+
+echo "  - State prefix ensured: s3://${STATE_BUCKET}/${STATE_PREFIX}/"
 
 echo ""
 echo "→ Ensuring DynamoDB lock table exists..."

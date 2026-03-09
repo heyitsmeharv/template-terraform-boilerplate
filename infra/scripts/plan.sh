@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # plan.sh
 # - Creates a plan for a chosen deployable root under infra/env/<environment>.

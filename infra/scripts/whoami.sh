@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # whoami.sh
 # - Prints the current AWS identity (account + principal ARN).

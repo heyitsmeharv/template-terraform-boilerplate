@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # use-env.sh
 # - Switches local AWS context by setting AWS_PROFILE=<environment>.
