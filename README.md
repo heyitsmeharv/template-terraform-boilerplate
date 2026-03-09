@@ -1,8 +1,6 @@
 # template-terraform-boilerplate
 Reusable Terraform boilerplate repo: a clean starter structure for modules, multi environments, and CI-ready workflow.
 
-Reusable Terraform boilerplate repo: a clean starter structure for modules, multiple environments, and a CI-ready workflow.
-
 ---
 
 ## What this repo is
@@ -14,6 +12,8 @@ This repository is a practical Terraform starter designed to be:
 - ready for CI (validate + plan on PRs, controlled applies)
 
 This repo does **not** enforce naming conventions. Any names you see are examples of shape and workflow.
+
+You will need to replace any boilerplate naming conventions used (Search for PROJECT_NAME)
 
 ---
 
@@ -59,6 +59,8 @@ bash infra/scripts/bootstrap-state.sh "$ENVIRONMENT" --region eu-west-2
 # initialise Terraform for the environment using the generated backend config
 cd "infra/env/$ENVIRONMENT"
 terraform init -backend-config=backend.hcl
+
+# CD BACK TO THE ROOT TO RUN THE BELOW SCRIPTS
 
 # validate (fmt check + validate + tflint)
 bash infra/scripts/validate.sh "$ENVIRONMENT"

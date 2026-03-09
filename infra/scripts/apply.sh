@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # apply.sh
 # - Applies a previously generated plan file (tfplan).

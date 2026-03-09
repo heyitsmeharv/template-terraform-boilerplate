@@ -58,13 +58,13 @@ jobs:
           tflint --version
 
       - name: Validate (fmt + validate + tflint)
-        run: bash infra/scripts/validate.sh ${{ matrix.environment }}
+        run: bash -euo pipefail infra/scripts/validate.sh ${{ matrix.environment }}
 
       - name: Write backend.hcl
-        run: bash infra/scripts/write-backend-hcl.sh ${{ matrix.environment }} --region ${{ env.AWS_REGION }}
+        run: bash -euo pipefail infra/scripts/write-backend-hcl.sh ${{ matrix.environment }} --region ${{ env.AWS_REGION }}
 
       - name: Plan
-        run: bash infra/scripts/plan.sh ${{ matrix.environment }}
+        run: bash -euo pipefail infra/scripts/plan.sh ${{ matrix.environment }}
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@v4
@@ -102,13 +102,13 @@ jobs:
           tflint --version
 
       - name: Validate (fmt + validate + tflint)
-        run: bash infra/scripts/validate.sh ${{ inputs.environment }}
+        run: bash -euo pipefail infra/scripts/validate.sh ${{ inputs.environment }}
 
       - name: Write backend.hcl
-        run: bash infra/scripts/write-backend-hcl.sh ${{ inputs.environment }} --region ${{ env.AWS_REGION }}
+        run: bash -euo pipefail infra/scripts/write-backend-hcl.sh ${{ inputs.environment }} --region ${{ env.AWS_REGION }}
 
       - name: Plan
-        run: bash infra/scripts/plan.sh ${{ inputs.environment }}
+        run: bash -euo pipefail infra/scripts/plan.sh ${{ inputs.environment }}
 
       - name: Apply
-        run: bash infra/scripts/apply.sh ${{ inputs.environment }}
+        run: bash -euo pipefail infra/scripts/apply.sh ${{ inputs.environment }}

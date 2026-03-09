@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # fmt.sh
 # - Formats Terraform code under infra/ recursively.

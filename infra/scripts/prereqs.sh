@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # prereqs.sh
 # - Verifies required tooling is available *in this shell* (PATH).
