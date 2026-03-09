@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.3](https://github.com/heyitsmeharv/template-terraform-boilerplate/compare/v0.0.2...v0.0.3) (2026-03-09)
+
+
+### Bug Fixes
+
+* prevent false positives in pipeline but can debug locally ([9620310](https://github.com/heyitsmeharv/template-terraform-boilerplate/commit/9620310574d5483f5b5227a8fde45d07aa73c778))
+
 ## 0.0.2 (2026-02-11)
 
 
