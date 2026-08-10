@@ -12,6 +12,7 @@
     "tf:validate": "bash infra/scripts/validate.sh",
     "tf:plan": "bash infra/scripts/plan.sh",
     "tf:apply": "bash infra/scripts/apply.sh",
+    "tf:destroy": "bash infra/scripts/destroy.sh",
     "prepare": "husky",
     "release": "commit-and-tag-version"
   },
